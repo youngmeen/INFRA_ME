@@ -31,9 +31,7 @@ public class StartupDailyDigestService {
 
         log.info("[STARTUP] daily digest missed → sending");
         try {
-            int sentCount = dailyNewsDigestService.sendDailyDigest();
-            String status = sentCount > 0 ? "SENT" : "EMPTY";
-            sendHistoryRepository.completeDaily(today, sentCount, status, "startup-check");
+            dailyNewsDigestService.sendDailyDigest();
         } catch (Exception e) {
             sendHistoryRepository.completeDaily(today, 0, "FAILED", safeMessage(e));
             log.warn("[STARTUP] daily digest send failed: {}", safeMessage(e));

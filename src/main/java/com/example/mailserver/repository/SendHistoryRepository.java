@@ -12,7 +12,8 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class SendHistoryRepository {
 
-    private static final String DAILY_TYPE = "DAILY";
+    private static final String DAILY_TYPE = "DAILY_NEWS";
+    private static final String LEGACY_DAILY_TYPE = "DAILY";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -34,6 +35,21 @@ public class SendHistoryRepository {
     }
 
     public boolean claimDailyIfAbsent(LocalDate date) {
+        Integer existing = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM send_history
+                        WHERE digest_date = ?
+                          AND digest_type IN (?, ?)
+                        """,
+                Integer.class,
+                date.toString(),
+                DAILY_TYPE,
+                LEGACY_DAILY_TYPE
+        );
+        if (existing != null && existing > 0) {
+            return false;
+        }
+
         int changed = jdbcTemplate.update("""
                         INSERT INTO send_history (digest_date, digest_type, sent_at, sent_count, status, message)
                         VALUES (?, ?, ?, ?, ?, ?)
@@ -49,18 +65,38 @@ public class SendHistoryRepository {
         return changed > 0;
     }
 
+    public void upsertDailyResult(LocalDate date, int sentCount, String status, String message) {
+        jdbcTemplate.update("""
+                        INSERT INTO send_history (digest_date, digest_type, sent_at, sent_count, status, message)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(digest_date, digest_type) DO UPDATE SET
+                          sent_at = excluded.sent_at,
+                          sent_count = excluded.sent_count,
+                          status = excluded.status,
+                          message = excluded.message
+                        """,
+                date.toString(),
+                DAILY_TYPE,
+                Instant.now().toEpochMilli(),
+                Math.max(0, sentCount),
+                status,
+                message
+        );
+    }
+
     public void completeDaily(LocalDate date, int sentCount, String status, String message) {
         jdbcTemplate.update("""
                         UPDATE send_history
                         SET sent_at = ?, sent_count = ?, status = ?, message = ?
-                        WHERE digest_date = ? AND digest_type = ?
+                        WHERE digest_date = ? AND digest_type IN (?, ?)
                         """,
                 Instant.now().toEpochMilli(),
                 Math.max(0, sentCount),
                 status,
                 message,
                 date.toString(),
-                DAILY_TYPE
+                DAILY_TYPE,
+                LEGACY_DAILY_TYPE
         );
     }
 }
