@@ -6,6 +6,7 @@ spring:
     import:
       - optional:classpath:config/news-policy.yml
       - optional:classpath:config/news-sources.yml
+      - optional:classpath:config/interest-policy.yml
   datasource:
     url: ${DB_URL:jdbc:sqlite:/data/news.db}
     driver-class-name: org.sqlite.JDBC
@@ -106,6 +107,23 @@ app:
       - bloter.net
       - ciokorea.com
       - news.google.com
+    interest:
+      enabled: true
+      keywords:
+        - AI
+        - 반도체
+        - 엔비디아
+        - NVIDIA
+        - 삼성전자
+        - SK하이닉스
+        - 금리
+        - 환율
+        - 철강
+        - 인프라
+        - 건설
+      keyword-boost-score: 1.1
+      top-news-interest-priority: true
+      max-interest-items: 2
     sources:
       ai: []
       dev: []

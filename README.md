@@ -3,6 +3,17 @@
 Spring Boot + RSS + SQLite 기반 Telegram 개발자 뉴스 서버입니다.
 기술 흐름 + 시장 흐름(투자 관점)을 함께 보는 아침 브리핑 채널을 목표로 운영합니다.
 
+## 실운영(맥미니) 빠른 시작
+
+```bash
+cd /Users/developer/Desktop/codex/projects/mail-server
+./scripts/start-prod.sh
+./scripts/status-prod.sh
+```
+
+- 운영 중지: `./scripts/stop-prod.sh`
+- 운영 상세 문서: `docs/operations.md`
+
 ## 운영 원칙 (핵심)
 
 - 민감값은 `.env`에서만 관리 (Git 금지)
@@ -13,6 +24,7 @@ Spring Boot + RSS + SQLite 기반 Telegram 개발자 뉴스 서버입니다.
 - 뉴스 정책은 Git 관리 파일에서 관리
   - `src/main/resources/config/news-sources.yml`
   - `src/main/resources/config/news-policy.yml`
+  - `src/main/resources/config/interest-policy.yml`
 - 운영자가 RSS를 로컬에서 수동 편집하지 않음
   - 정책 수정 -> commit/push(main) -> 자동 배포
 
@@ -61,7 +73,9 @@ docker compose logs --tail=120 mail-server | rg '\[CONFIG\]'
 - `[MARKET] selected/dropped`
 - `[MACRO] selected/dropped`
 - `[LANG] selected ko/en`
+- `[INTEREST] matched/selected/keywords`
 - `[DIGEST] topNews/total/categories`
+- `[DIGEST] interestItems/total`
 
 ## 로컬 실행
 

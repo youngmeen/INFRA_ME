@@ -62,6 +62,7 @@ public class NewsScoreService {
             double score = categoryScore(item.category())
                     + sourceScore(item.source(), item.link())
                     + keywordScore(item)
+                    + interestBoost(item)
                     + freshnessScore(item.publishedAt(), now)
                     + developerRelevance(item)
                     + marketMacroBoost(item)
@@ -105,6 +106,43 @@ public class NewsScoreService {
             }
         }
         return score;
+    }
+
+    private double interestBoost(NewsItem item) {
+        if (!properties.getInterest().isEnabled()) {
+            return 0.0;
+        }
+
+        String title = safe(item.title()).toLowerCase(Locale.ROOT);
+        String summary = safe(item.summary()).toLowerCase(Locale.ROOT);
+        double boost = 0.0;
+        int matched = 0;
+
+        for (String keyword : properties.getInterest().getKeywords()) {
+            String normalized = keyword.toLowerCase(Locale.ROOT).trim();
+            if (normalized.isBlank()) {
+                continue;
+            }
+
+            boolean matchedHere = false;
+            if (title.contains(normalized)) {
+                boost += properties.getInterest().getKeywordBoostScore();
+                matchedHere = true;
+            }
+            if (summary.contains(normalized)) {
+                boost += properties.getInterest().getKeywordBoostScore() * 0.7;
+                matchedHere = true;
+            }
+            if (matchedHere) {
+                matched++;
+            }
+        }
+
+        if (matched > 0 && (item.category() == NewsCategory.MARKET || item.category() == NewsCategory.MACRO
+                || item.category() == NewsCategory.AI || item.category() == NewsCategory.INFRA)) {
+            boost += 0.5;
+        }
+        return boost;
     }
 
     private double freshnessScore(Instant publishedAt, Instant now) {

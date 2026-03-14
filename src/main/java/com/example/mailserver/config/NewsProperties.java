@@ -40,12 +40,23 @@ public class NewsProperties {
     private List<String> macroKeywords = new ArrayList<>();
     private List<String> koreaLowQualityKeywords = new ArrayList<>();
     private List<String> koreanMarketSourceDomains = new ArrayList<>();
+    private Interest interest = new Interest();
     private Sources sources = new Sources();
 
     @Getter
     @Setter
     public static class Dedupe {
         private double titleSimilarityThreshold = 0.88;
+    }
+
+    @Getter
+    @Setter
+    public static class Interest {
+        private boolean enabled = true;
+        private List<String> keywords = new ArrayList<>();
+        private double keywordBoostScore = 1.1;
+        private boolean topNewsInterestPriority = true;
+        private int maxInterestItems = 2;
     }
 
     @Getter

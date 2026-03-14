@@ -1,20 +1,25 @@
 package com.example.mailserver.service;
 
+import com.example.mailserver.config.NewsProperties;
 import com.example.mailserver.news.NewsCategory;
 import com.example.mailserver.news.NewsDigestView;
 import com.example.mailserver.news.StoredNewsItem;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class TelegramFormatService {
 
     private static final DateTimeFormatter DATE_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Asia/Seoul"));
+    private final NewsProperties properties;
 
     public String formatDaily(NewsDigestView view) {
         StringBuilder sb = new StringBuilder();
@@ -34,6 +39,7 @@ public class TelegramFormatService {
             int index = 1;
             for (StoredNewsItem item : view.topNews().stream().limit(2).toList()) {
                 sb.append("\n<b>").append(index++).append(". [").append(displayCategory(item.category())).append("] ")
+                        .append(interestBadge(item))
                         .append(escape(displayTitle(item.title()))).append("</b>\n");
                 sb.append("- 핵심: ").append(escape(displaySummary(item.summary(), item.title()))).append("\n");
                 sb.append("- 왜 중요?: ").append(escape(whyImportant(item))).append("\n");
@@ -52,6 +58,7 @@ public class TelegramFormatService {
 
             for (StoredNewsItem item : items) {
                 sb.append("- <a href=\"").append(escape(item.link())).append("\"><b>")
+                        .append(interestBadge(item))
                         .append(escape(displayTitle(item.title()))).append("</b></a>\n");
                 sb.append("  ").append(escape(displaySummary(item.summary(), item.title()))).append("\n");
                 sb.append("  ").append(escape(item.source())).append(" | ")
@@ -166,6 +173,21 @@ public class TelegramFormatService {
 
     private String safe(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String interestBadge(StoredNewsItem item) {
+        if (!properties.getInterest().isEnabled()) {
+            return "";
+        }
+        String merged = (safe(item.title()) + " " + safe(item.summary()) + " " + safe(item.source()))
+                .toLowerCase(Locale.ROOT);
+        for (String keyword : properties.getInterest().getKeywords()) {
+            String normalized = keyword.toLowerCase(Locale.ROOT).trim();
+            if (!normalized.isBlank() && merged.contains(normalized)) {
+                return "⭐ 관심 ";
+            }
+        }
+        return "";
     }
 
     private String escape(String value) {

@@ -1,0 +1,19 @@
+app:
+  news:
+    interest:
+      enabled: true
+      keywords:
+        - AI
+        - 반도체
+        - 엔비디아
+        - NVIDIA
+        - 삼성전자
+        - SK하이닉스
+        - 금리
+        - 환율
+        - 철강
+        - 인프라
+        - 건설
+      keyword-boost-score: 1.1
+      top-news-interest-priority: true
+      max-interest-items: 2

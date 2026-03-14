@@ -21,6 +21,7 @@ import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class NewsService {
 
     private static final Logger log = LoggerFactory.getLogger(NewsService.class);
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final Duration TODAY_FALLBACK_WINDOW = Duration.ofHours(30);
 
     private final NewsProperties properties;
     private final RssFetcherService rssFetcherService;
@@ -66,10 +68,21 @@ public class NewsService {
 
     public List<StoredNewsItem> getTodayNews(int limit, NewsCategory category) {
         Instant since = LocalDate.now(KST).atStartOfDay(KST).toInstant();
-        if (category != null) {
-            return newsRepository.findSinceByCategory(since, category, limit);
+        List<StoredNewsItem> today = category != null
+                ? newsRepository.findSinceByCategory(since, category, limit)
+                : newsRepository.findSince(since, limit);
+        if (!today.isEmpty()) {
+            return today;
         }
-        return newsRepository.findSince(since, limit);
+
+        Instant fallbackSince = Instant.now().minus(TODAY_FALLBACK_WINDOW);
+        List<StoredNewsItem> fallback = category != null
+                ? newsRepository.findSinceByCategory(fallbackSince, category, limit)
+                : newsRepository.findSince(fallbackSince, limit);
+
+        log.info("[DIGEST] today window empty. fallbackHours={} category={} fallbackCount={}",
+                TODAY_FALLBACK_WINDOW.toHours(), category == null ? "ALL" : category.name(), fallback.size());
+        return fallback;
     }
 
     public List<StoredNewsItem> getWeeklyNews(int limit, NewsCategory category) {
@@ -131,9 +144,18 @@ public class NewsService {
                 .sorted(Comparator.comparingDouble(this::weightedScore).reversed()
                         .thenComparing(StoredNewsItem::publishedAt, Comparator.reverseOrder()))
                 .toList();
+        if (ranked.isEmpty() && !input.isEmpty()) {
+            ranked = input.stream()
+                    .sorted(Comparator.comparingDouble(this::weightedScore).reversed()
+                            .thenComparing(StoredNewsItem::publishedAt, Comparator.reverseOrder()))
+                    .toList();
+            log.info("[DIGEST] qualityGate fallback applied. input={} fallbackRanked={}", input.size(), ranked.size());
+        }
 
         List<StoredNewsItem> cappedForHn = capHackerNews(ranked, properties.getHackerNewsDailyMax());
         if (cappedForHn.isEmpty()) {
+            log.info("[INTEREST] matched=0 selected=0 keywords=-");
+            log.info("[DIGEST] interestItems=0 total=0");
             return new NewsDigestView(Instant.now(),
                     List.of("오늘 아침에 바로 볼 만한 개발/투자 뉴스가 아직 없습니다.", "낮 시간에 다시 수집되면 자동 반영됩니다."),
                     List.of(),
@@ -144,7 +166,8 @@ public class NewsService {
         int topTarget = Math.max(2, Math.min(topNewsCount, 2));
         int targetTotal = Math.max(5, Math.min(totalLimit, 6));
 
-        List<StoredNewsItem> topNews = pickTopNews(cappedForHn, topTarget);
+        List<StoredNewsItem> selectionPool = prioritizeInterest(cappedForHn);
+        List<StoredNewsItem> topNews = pickTopNews(selectionPool, topTarget);
         Set<Long> usedIds = new HashSet<>();
         topNews.forEach(item -> usedIds.add(item.id()));
 
@@ -157,13 +180,13 @@ public class NewsService {
         int selectedMacro = (int) topNews.stream().filter(item -> item.category() == NewsCategory.MACRO).count();
 
         if (properties.isMarketEnabled() && selectedMarket < 1) {
-            selectedMarket += pickPriorityBody(cappedForHn, usedIds, categories, NewsCategory.MARKET, properties.getMaxMarketItems());
+            selectedMarket += pickPriorityBody(selectionPool, usedIds, categories, NewsCategory.MARKET, properties.getMaxMarketItems());
         }
         if (properties.isMacroEnabled() && selectedMacro < 1) {
-            selectedMacro += pickPriorityBody(cappedForHn, usedIds, categories, NewsCategory.MACRO, properties.getMaxMacroItems());
+            selectedMacro += pickPriorityBody(selectionPool, usedIds, categories, NewsCategory.MACRO, properties.getMaxMacroItems());
         }
 
-        for (StoredNewsItem item : cappedForHn) {
+        for (StoredNewsItem item : selectionPool) {
             if (usedIds.contains(item.id())) {
                 continue;
             }
@@ -202,7 +225,7 @@ public class NewsService {
         }
 
         if (usedIds.size() < targetTotal) {
-            for (StoredNewsItem item : cappedForHn) {
+            for (StoredNewsItem item : selectionPool) {
                 if (usedIds.contains(item.id())) {
                     continue;
                 }
@@ -239,23 +262,29 @@ public class NewsService {
             normalizedCategories.put(entry.getKey(), entry.getValue().stream().map(this::toDigestItem).toList());
         }
 
-        int selectedKo = (int) mergedItems(normalizedTop, normalizedCategories).stream().filter(this::isKoreanPreferred).count();
-        int selectedEn = mergedItems(normalizedTop, normalizedCategories).size() - selectedKo;
+        List<StoredNewsItem> merged = mergedItems(normalizedTop, normalizedCategories);
+        int selectedKo = (int) merged.stream().filter(this::isKoreanPreferred).count();
+        int selectedEn = merged.size() - selectedKo;
         int availableMarket = (int) cappedForHn.stream().filter(item -> item.category() == NewsCategory.MARKET).count();
         int availableMacro = (int) cappedForHn.stream().filter(item -> item.category() == NewsCategory.MACRO).count();
-        int finalMarket = (int) mergedItems(normalizedTop, normalizedCategories).stream().filter(item -> item.category() == NewsCategory.MARKET).count();
-        int finalMacro = (int) mergedItems(normalizedTop, normalizedCategories).stream().filter(item -> item.category() == NewsCategory.MACRO).count();
+        int finalMarket = (int) merged.stream().filter(item -> item.category() == NewsCategory.MARKET).count();
+        int finalMacro = (int) merged.stream().filter(item -> item.category() == NewsCategory.MACRO).count();
+        int matchedInterest = (int) cappedForHn.stream().filter(this::isInterestMatched).count();
+        int selectedInterest = (int) merged.stream().filter(this::isInterestMatched).count();
+        String selectedKeywords = collectInterestKeywords(merged);
 
         log.info("[MARKET] selected={} dropped={}", finalMarket, Math.max(0, availableMarket - finalMarket));
         log.info("[MACRO] selected={} dropped={}", finalMacro, Math.max(0, availableMacro - finalMacro));
         log.info("[LANG] selected ko={} en={}", selectedKo, selectedEn);
+        log.info("[INTEREST] matched={} selected={} keywords={}", matchedInterest, selectedInterest, selectedKeywords);
 
-        String categorySummary = mergedItems(normalizedTop, normalizedCategories).stream()
+        String categorySummary = merged.stream()
                 .map(item -> item.category().name())
                 .distinct()
                 .collect(Collectors.joining(","));
 
         log.info("[DIGEST] topNews={} total={} categories={}", normalizedTop.size(), usedIds.size(), categorySummary);
+        log.info("[DIGEST] interestItems={} total={}", selectedInterest, usedIds.size());
 
         return new NewsDigestView(
                 Instant.now(),
@@ -325,12 +354,29 @@ public class NewsService {
     private List<StoredNewsItem> pickTopNews(List<StoredNewsItem> ranked, int count) {
         List<StoredNewsItem> top = new ArrayList<>();
         Set<NewsCategory> usedCategory = new HashSet<>();
+        int interestLimit = Math.max(0, Math.min(count, properties.getInterest().getMaxInterestItems()));
+
+        if (properties.getInterest().isEnabled() && properties.getInterest().isTopNewsInterestPriority() && interestLimit > 0) {
+            for (StoredNewsItem item : ranked) {
+                if (top.size() >= interestLimit) {
+                    break;
+                }
+                if (!isInterestMatched(item)) {
+                    continue;
+                }
+                top.add(item);
+                usedCategory.add(item.category());
+            }
+        }
 
         for (StoredNewsItem item : ranked) {
             if (top.size() >= count) {
                 break;
             }
-            if (!usedCategory.add(item.category())) {
+            if (top.stream().anyMatch(existing -> existing.id() == item.id())) {
+                continue;
+            }
+            if (!usedCategory.add(item.category()) && top.size() >= Math.max(1, count - 1)) {
                 continue;
             }
             top.add(item);
@@ -483,6 +529,60 @@ public class NewsService {
             }
         }
         return false;
+    }
+
+    private List<StoredNewsItem> prioritizeInterest(List<StoredNewsItem> ranked) {
+        if (!properties.getInterest().isEnabled()) {
+            return ranked;
+        }
+        List<StoredNewsItem> prioritized = new ArrayList<>();
+        for (StoredNewsItem item : ranked) {
+            if (isInterestMatched(item)) {
+                prioritized.add(item);
+            }
+        }
+        for (StoredNewsItem item : ranked) {
+            if (!isInterestMatched(item)) {
+                prioritized.add(item);
+            }
+        }
+        return prioritized;
+    }
+
+    private boolean isInterestMatched(StoredNewsItem item) {
+        if (!properties.getInterest().isEnabled()) {
+            return false;
+        }
+        String merged = (safe(item.title()) + " " + safe(item.summary()) + " " + safe(item.source()))
+                .toLowerCase(Locale.ROOT);
+        for (String keyword : properties.getInterest().getKeywords()) {
+            String normalized = keyword.toLowerCase(Locale.ROOT).trim();
+            if (!normalized.isBlank() && merged.contains(normalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String collectInterestKeywords(List<StoredNewsItem> items) {
+        if (!properties.getInterest().isEnabled()) {
+            return "-";
+        }
+        Set<String> matched = new LinkedHashSet<>();
+        for (StoredNewsItem item : items) {
+            String merged = (safe(item.title()) + " " + safe(item.summary()) + " " + safe(item.source()))
+                    .toLowerCase(Locale.ROOT);
+            for (String keyword : properties.getInterest().getKeywords()) {
+                String normalized = keyword.toLowerCase(Locale.ROOT).trim();
+                if (!normalized.isBlank() && merged.contains(normalized)) {
+                    matched.add(keyword);
+                }
+            }
+        }
+        if (matched.isEmpty()) {
+            return "-";
+        }
+        return String.join(",", matched);
     }
 
     private int fixedTopCount() {

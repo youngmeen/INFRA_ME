@@ -33,6 +33,12 @@ public class NewsConfigLogService {
         log.info("[CONFIG] MARKET enabled={} maxItems={} | MACRO enabled={} maxItems={}",
                 properties.isMarketEnabled(), properties.getMaxMarketItems(),
                 properties.isMacroEnabled(), properties.getMaxMacroItems());
+        log.info("[CONFIG] INTEREST enabled={} keywords={} boost={} topPriority={} maxItems={}",
+                properties.getInterest().isEnabled(),
+                properties.getInterest().getKeywords().size(),
+                properties.getInterest().getKeywordBoostScore(),
+                properties.getInterest().isTopNewsInterestPriority(),
+                properties.getInterest().getMaxInterestItems());
         log.info("[CONFIG] KOREA_IT lowQualityKeywords={}", properties.getKoreaLowQualityKeywords().size());
     }
 }
