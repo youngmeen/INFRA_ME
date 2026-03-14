@@ -1,0 +1,118 @@
+server:
+  port: ${PORT:3000}
+
+spring:
+  config:
+    import:
+      - optional:classpath:config/news-policy.yml
+      - optional:classpath:config/news-sources.yml
+  datasource:
+    url: ${DB_URL:jdbc:sqlite:/data/news.db}
+    driver-class-name: org.sqlite.JDBC
+  mail:
+    host: ${SPRING_MAIL_HOST}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME}
+    password: ${SPRING_MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: ${SPRING_MAIL_STARTTLS_ENABLE:true}
+
+app:
+  mail:
+    from: ${APP_MAIL_FROM}
+  telegram:
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    chat-id: ${TELEGRAM_CHAT_ID:}
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model: ${OPENAI_MODEL:gpt-4.1-mini}
+
+  # Fallback only. Real 운영 정책은 classpath:config/news-policy.yml, news-sources.yml에서 관리.
+  news:
+    cron: "0 0 9 * * *"
+    zone: "Asia/Seoul"
+    weekly-cron: "0 0 9 * * MON"
+    weekly-zone: "Asia/Seoul"
+    daily-limit: 14
+    weekly-top: 10
+    per-category-daily: 1
+    digest-top-news: 2
+    digest-total: 6
+    rss-timeout-ms: 8000
+    hacker-news-enabled: true
+    hacker-news-daily-max: 2
+    market-enabled: true
+    macro-enabled: true
+    max-market-items: 2
+    max-macro-items: 2
+    english-market-penalty: 1.6
+    minimum-korean-market-ratio: 0.7
+    dedupe:
+      title-similarity-threshold: 0.88
+    important-keywords:
+      - ai
+      - openai
+      - llm
+      - gpt
+      - security
+      - cve
+      - exploit
+      - kubernetes
+      - docker
+      - spring
+      - java
+      - aws
+      - azure
+      - gcp
+      - platform
+      - api
+      - sdk
+      - privacy
+      - policy
+    market-keywords:
+      - 반도체
+      - 실적
+      - 가이던스
+      - 엔비디아
+      - 삼성전자
+      - SK하이닉스
+    macro-keywords:
+      - 금리
+      - 연준
+      - FOMC
+      - CPI
+      - 환율
+    korea-low-quality-keywords:
+      - 채용설명회
+      - 수강생모집
+      - 교육생모집
+      - 기념식
+      - 업무협약식
+      - 세미나개최
+      - 홍보관오픈
+      - 체험행사
+      - 무료교육
+      - 부트캠프모집
+      - 행사성료
+      - 교육성료
+      - 기관보도자료
+    korean-market-source-domains:
+      - etnews.com
+      - zdnet.co.kr
+      - bloter.net
+      - ciokorea.com
+      - news.google.com
+    sources:
+      ai: []
+      dev: []
+      infra: []
+      security: []
+      bigtech: []
+      korea-it: []
+      market: []
+      macro: []
+      hacker-news: []

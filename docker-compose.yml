@@ -1,0 +1,24 @@
+services:
+  mail-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mail-server
+    restart: unless-stopped
+    environment:
+      PORT: ${PORT:-3000}
+      DB_URL: ${DB_URL:-jdbc:sqlite:/data/news.db}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_MAIL_STARTTLS_ENABLE: ${SPRING_MAIL_STARTTLS_ENABLE:-true}
+      APP_MAIL_FROM: ${APP_MAIL_FROM:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data

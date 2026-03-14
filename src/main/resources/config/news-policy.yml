@@ -1,0 +1,149 @@
+app:
+  news:
+    cron: "0 0 9 * * *"
+    zone: "Asia/Seoul"
+    weekly-cron: "0 0 9 * * MON"
+    weekly-zone: "Asia/Seoul"
+
+    daily-limit: 16
+    weekly-top: 10
+    per-category-daily: 1
+    digest-top-news: 2
+    digest-total: 6
+
+    rss-timeout-ms: 8000
+    hacker-news-enabled: true
+    hacker-news-daily-max: 2
+
+    market-enabled: true
+    macro-enabled: true
+    max-market-items: 2
+    max-macro-items: 2
+    english-market-penalty: 1.6
+    minimum-korean-market-ratio: 0.7
+
+    dedupe:
+      title-similarity-threshold: 0.88
+
+    important-keywords:
+      - OpenAI
+      - LLM
+      - GPT
+      - Java
+      - Spring
+      - Docker
+      - Kubernetes
+      - AWS
+      - Azure
+      - GCP
+      - Security
+      - ZeroDay
+      - CVE
+      - Anthropic
+      - HuggingFace
+      - Terraform
+      - CI/CD
+      - 반도체
+      - 엔비디아
+      - NVIDIA
+      - AMD
+      - TSMC
+      - 삼성전자
+      - SK하이닉스
+      - 실적
+      - 가이던스
+      - AI 서버
+      - 데이터센터
+      - 빅테크
+      - 규제
+      - 수출
+      - 관세
+      - 정책 수혜
+      - 코스피
+      - 코스닥
+      - 나스닥
+      - S&P500
+      - 금리
+      - 기준금리
+      - 연준
+      - FOMC
+      - CPI
+      - PPI
+      - 고용지표
+      - 실업률
+      - 환율
+      - 달러
+      - 국채금리
+      - 물가
+
+    market-keywords:
+      - 반도체
+      - 엔비디아
+      - NVIDIA
+      - AMD
+      - TSMC
+      - 삼성전자
+      - SK하이닉스
+      - 실적
+      - 가이던스
+      - AI 서버
+      - 데이터센터
+      - 빅테크
+      - 규제
+      - 수출
+      - 관세
+      - 배터리
+      - 2차전지
+      - 코스피
+      - 코스닥
+      - 나스닥
+      - S&P500
+
+    macro-keywords:
+      - 금리
+      - 기준금리
+      - 연준
+      - FOMC
+      - CPI
+      - PPI
+      - 고용지표
+      - 실업률
+      - 환율
+      - 달러
+      - 국채금리
+      - 경기침체
+      - 물가
+      - 유가
+
+    korean-market-source-domains:
+      - etnews.com
+      - zdnet.co.kr
+      - bloter.net
+      - ciokorea.com
+      - hankyung.com
+      - mk.co.kr
+      - sedaily.com
+      - edaily.co.kr
+      - chosunbiz.com
+      - yonhapnews.co.kr
+      - n.news.naver.com
+      - news.google.com
+
+    korea-low-quality-keywords:
+      - 채용설명회
+      - 수강생모집
+      - 교육생모집
+      - 기념식
+      - 업무협약식
+      - 세미나개최
+      - 홍보관오픈
+      - 체험행사
+      - 무료교육
+      - 부트캠프모집
+      - 행사성료
+      - 교육성료
+      - 기관보도자료
+      - 투자권유
+      - 급등주
+      - 추천종목
+      - 재테크칼럼

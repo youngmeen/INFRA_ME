@@ -1,0 +1,11 @@
+target/
+.idea/
+*.iml
+.env
+.env.*
+!.env.example
+!.env.news.example
+node_modules/
+*.log
+.DS_Store
+data/

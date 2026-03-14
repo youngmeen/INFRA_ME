@@ -1,0 +1,61 @@
+app:
+  news:
+    sources:
+      ai:
+        - https://openai.com/blog/rss
+        - https://www.anthropic.com/news/rss
+        - https://huggingface.co/blog/rss
+        - https://venturebeat.com/category/ai/feed/
+        - https://syncedreview.com/feed/
+        - https://www.marktechpost.com/feed/
+        - https://machinelearning.apple.com/rss.xml
+      dev:
+        - https://stackoverflow.blog/feed/
+        - https://blog.jetbrains.com/feed/
+        - https://martinfowler.com/feed.atom
+        - https://github.blog/feed/
+        - https://engineering.fb.com/feed/
+        - https://netflixtechblog.com/feed
+        - https://slack.engineering/feed
+        - https://dropbox.tech/feed
+        - https://discord.com/blog/rss
+      infra:
+        - https://aws.amazon.com/blogs/aws/feed/
+        - https://cloud.google.com/blog/rss
+        - https://azure.microsoft.com/en-us/blog/feed/
+        - https://kubernetes.io/feed.xml
+        - https://thenewstack.io/feed/
+        - https://www.infoq.com/feed/
+        - https://www.docker.com/blog/feed/
+      security:
+        - https://krebsonsecurity.com/feed/
+        - https://www.darkreading.com/rss.xml
+        - https://thehackernews.com/rss.xml
+        - https://www.securityweek.com/feed/
+        - https://portswigger.net/daily-swig/rss
+      bigtech:
+        - https://techcrunch.com/feed/
+        - https://www.theverge.com/rss/index.xml
+        - https://arstechnica.com/feed/
+        - https://www.wired.com/feed/rss
+        - https://www.engadget.com/rss.xml
+      korea-it:
+        - https://www.etnews.com/rss/news.xml
+        - https://zdnet.co.kr/news/news_xml.asp
+        - https://it.donga.com/feeds/rss/
+        - https://www.bloter.net/feed
+        - https://www.ciokorea.com/rss/all.xml
+      market:
+        - https://news.google.com/rss/search?q=%EB%B0%98%EB%8F%84%EC%B2%B4+%EC%8B%A4%EC%A0%81+when:1d&hl=ko&gl=KR&ceid=KR:ko
+        - https://news.google.com/rss/search?q=%EB%B9%85%ED%85%8C%ED%81%AC+%EA%B0%80%EC%9D%B4%EB%8D%98%EC%8A%A4+when:1d&hl=ko&gl=KR&ceid=KR:ko
+        - https://news.google.com/rss/search?q=%EC%82%BC%EC%84%B1%EC%A0%84%EC%9E%90+SK%ED%95%98%EC%9D%B4%EB%8B%89%EC%8A%A4+when:1d&hl=ko&gl=KR&ceid=KR:ko
+        - https://news.google.com/rss/search?q=%EC%BD%94%EC%8A%A4%ED%94%BC+%EB%82%98%EC%8A%A4%EB%8B%A5+%EC%98%81%ED%96%A5+when:1d&hl=ko&gl=KR&ceid=KR:ko
+        - https://news.google.com/rss/search?q=%EB%82%98%EC%8A%A4%EB%8B%A5+%EB%B0%98%EB%8F%84%EC%B2%B4+when:1d&hl=ko&gl=KR&ceid=KR:ko
+      macro:
+        - https://news.google.com/rss/search?q=%EA%B8%88%EB%A6%AC+%EC%97%B0%EC%A4%80+FOMC+when:1d&hl=ko&gl=KR&ceid=KR:ko
+        - https://news.google.com/rss/search?q=CPI+PPI+%EB%AF%B8%EA%B5%AD+%EB%AC%BC%EA%B0%80+when:1d&hl=ko&gl=KR&ceid=KR:ko
+        - https://news.google.com/rss/search?q=%ED%99%98%EC%9C%A8+%EB%8B%AC%EB%9F%AC+%EC%9B%90%ED%99%94+when:1d&hl=ko&gl=KR&ceid=KR:ko
+        - https://news.google.com/rss/search?q=%EA%B5%AD%EC%B1%84%EA%B8%88%EB%A6%AC+%EA%B3%A0%EC%9A%A9%EC%A7%80%ED%91%9C+when:1d&hl=ko&gl=KR&ceid=KR:ko
+        - https://news.google.com/rss/search?q=%EA%B2%BD%EA%B8%B0%EC%B9%A8%EC%B2%B4+%EC%84%A0%ED%96%89%EC%A7%80%ED%91%9C+when:1d&hl=ko&gl=KR&ceid=KR:ko
+      hacker-news:
+        - https://news.ycombinator.com/rss

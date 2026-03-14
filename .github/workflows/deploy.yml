@@ -1,0 +1,39 @@
+name: Deploy Mail Server
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          clean: false
+
+      - name: Ensure runtime secrets file exists
+        run: |
+          if [ ! -f .env ]; then
+            echo ".env is required on self-hosted runner and must contain runtime secrets."
+            exit 1
+          fi
+
+      - name: Ensure docker access
+        run: |
+          docker ps >/dev/null
+          docker compose version >/dev/null
+
+      - name: Deploy
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh
+
+      - name: Verify API endpoints
+        run: |
+          curl -fsS http://localhost:3000/health >/dev/null
+          curl -fsS http://localhost:3000/news/today/digest >/dev/null
