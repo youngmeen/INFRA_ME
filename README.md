@@ -79,6 +79,9 @@ docker compose logs --tail=120 mail-server | rg '\[CONFIG\]'
 - `[INTEREST] matched/selected/keywords`
 - `[DIGEST] topNews/total/categories`
 - `[DIGEST] interestItems/total`
+- `[STARTUP]` missed-send catch-up 상태
+- `[SCHEDULER]` 일일 발송/중복 skip 상태
+- `[SEND_HISTORY]` DAILY_NEWS 저장 결과(SUCCESS/FAIL/EMPTY)
 
 ## 로컬 실행
 
@@ -87,6 +90,84 @@ docker compose logs --tail=120 mail-server | rg '\[CONFIG\]'
 docker compose up -d --build
 curl -X POST http://localhost:3000/telegram/send-daily-news
 ```
+
+## Compose + Kubernetes 병행 운영
+
+역할 분리:
+- 루트 `docker-compose.yml`: 뉴스 서버 단일 운영(기존 유지)
+- `compose/docker-compose.yml`: `app + traefik + portainer` 통합 개발 스택
+- `k8s/*.yaml`: Kubernetes 로컬 검증용 매니페스트(`infra-me` namespace)
+
+### Docker Compose 사용
+
+```bash
+# 설정 유효성 확인
+./scripts/compose-check.sh
+
+# 루트 단일 서비스
+docker compose up -d --build
+
+# 통합 스택(app/traefik/portainer)
+docker compose -f compose/docker-compose.yml up -d --build
+```
+
+### Kubernetes 사용 (Docker Desktop 기준)
+
+1. Docker Desktop 실행
+2. `Settings > Kubernetes > Enable Kubernetes` 활성화
+3. 상태가 Running이 될 때까지 대기
+4. `kubectl config current-context`가 유효한지 확인
+
+`kubectl` 미설치 시:
+
+```bash
+brew install kubectl
+```
+
+클러스터 점검:
+
+```bash
+./scripts/k8s-check.sh
+```
+
+배포/삭제:
+
+```bash
+./scripts/k8s-deploy.sh
+./scripts/k8s-destroy.sh
+```
+
+접근 확인(기본):
+- App: `http://app.localtest.me:32080`
+- Traefik Dashboard: `http://localhost:32081/dashboard/`
+
+설명:
+- Docker Desktop Kubernetes 로컬 환경에서 `LoadBalancer` 외부 IP 할당이 불안정할 수 있어, Traefik Service는 `NodePort`(`32080/32081`)로 고정했다.
+- App Service는 클러스터 내부 통신용 `ClusterIP`를 유지하고, 외부 접근은 Traefik Ingress로 라우팅한다.
+
+### 대체 옵션: kind (간단 가이드)
+
+Docker Desktop Kubernetes를 사용하지 않을 때:
+
+```bash
+brew install kind kubectl
+kind create cluster --name infra-me
+./scripts/k8s-deploy.sh
+```
+
+종료:
+
+```bash
+kind delete cluster --name infra-me
+```
+
+### 스크립트 역할
+
+- `scripts/docker-clean.sh`: dangling/unused image, stopped container, unused volume, build cache 정리
+- `scripts/compose-check.sh`: Docker/Compose 설치·데몬 상태, compose config, 서비스/healthcheck 점검
+- `scripts/k8s-check.sh`: kubectl/cluster-info/namespace/pod/svc/ingress 상태 점검
+- `scripts/k8s-deploy.sh`: namespace -> rbac -> workload -> ingress 순서 배포 및 rollout 확인
+- `scripts/k8s-destroy.sh`: 리소스 및 namespace 정리
 
 ## 장애 대응 체크리스트
 
@@ -122,6 +203,35 @@ git checkout main && git pull --ff-only origin main
 docker compose up -d --build
 curl -fsS http://localhost:3000/health
 ```
+
+### 6) kubectl not found
+
+- `brew install kubectl`
+- Docker Desktop Kubernetes 활성화 후 `./scripts/k8s-check.sh`
+
+### 7) cluster unreachable
+
+- Docker Desktop 실행 여부 확인
+- Docker Desktop Kubernetes 활성화 여부 확인
+- `kubectl config current-context` / `kubectl cluster-info` 재확인
+
+### 8) pod crashloop
+
+- `kubectl -n infra-me get pods`
+- `kubectl -n infra-me logs deploy/app --tail=200`
+- `kubectl -n infra-me describe pod <pod-name>`
+
+### 9) image pull 실패 (ErrImagePull/ImagePullBackOff)
+
+- 로컬 이미지 빌드: `docker build -t infra-me-app:latest .`
+- 재배포: `./scripts/k8s-deploy.sh`
+- 필요 시 imagePullPolicy 및 이미지 태그 일치 확인
+
+### 10) ingress 미노출
+
+- `kubectl -n infra-me get ingress`
+- `kubectl -n infra-me get svc traefik`
+- `http://app.localtest.me:32080`로 접근 테스트
 
 ## 보안 정책
 

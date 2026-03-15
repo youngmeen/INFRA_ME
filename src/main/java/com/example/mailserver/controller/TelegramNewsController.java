@@ -20,10 +20,12 @@ public class TelegramNewsController {
 
     @PostMapping("/send-daily-news")
     public ResponseEntity<Map<String, Object>> sendNow() {
-        int count = digestService.sendDailyDigest();
+        int count = digestService.sendDailyDigest("manual-api");
+        boolean skipped = count < 0;
         return ResponseEntity.ok(Map.of(
                 "ok", true,
-                "sentCount", count
+                "sentCount", skipped ? 0 : count,
+                "skipped", skipped
         ));
     }
 

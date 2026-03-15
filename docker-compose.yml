@@ -22,3 +22,47 @@ services:
       - "3000:3000"
     volumes:
       - ./data:/data
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mariadb:
+    image: mariadb:11
+    container_name: mail-server-mariadb
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-change_me_1234}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-app}
+      MARIADB_USER: ${MARIADB_USER:-app}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-app1234}
+    ports:
+      - "${MARIADB_PORT:-13306}:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: mail-server-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-redis1234}"]
+    ports:
+      - "${REDIS_PORT:-16379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis1234}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mariadb_data:
+  redis_data:

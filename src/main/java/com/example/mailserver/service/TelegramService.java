@@ -1,16 +1,15 @@
 package com.example.mailserver.service;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 public class TelegramService {
 
-    private final RestClient restClient;
+    private final RestTemplate restTemplate;
 
     @Value("${app.telegram.bot-token}")
     private String botToken;
@@ -19,7 +18,7 @@ public class TelegramService {
     private String chatId;
 
     public TelegramService() {
-        this.restClient = RestClient.create();
+        this.restTemplate = new RestTemplate();
     }
 
     public void sendMessage(String text) {
@@ -29,12 +28,7 @@ public class TelegramService {
         body.add("text", truncate(text, 4000));
         body.add("disable_web_page_preview", "true");
 
-        restClient.post()
-                .uri(url)
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(body)
-                .retrieve()
-                .toBodilessEntity();
+        restTemplate.postForEntity(url, body, String.class);
     }
 
     public void sendHtmlMessage(String html) {
@@ -45,12 +39,7 @@ public class TelegramService {
         body.add("parse_mode", "HTML");
         body.add("disable_web_page_preview", "true");
 
-        restClient.post()
-                .uri(url)
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(body)
-                .retrieve()
-                .toBodilessEntity();
+        restTemplate.postForEntity(url, body, String.class);
     }
 
     private String truncate(String text, int maxLength) {

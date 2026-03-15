@@ -2,8 +2,8 @@ package com.example.mailserver.controller;
 
 import com.example.mailserver.dto.SendEmailRequest;
 import com.example.mailserver.service.EmailService;
-import jakarta.mail.MessagingException;
-import jakarta.validation.Valid;
+import javax.mail.MessagingException;
+import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

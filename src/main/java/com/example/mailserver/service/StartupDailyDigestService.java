@@ -9,6 +9,8 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZonedDateTime;
 import java.time.ZoneId;
 
 @Service
@@ -17,23 +19,28 @@ public class StartupDailyDigestService {
 
     private static final Logger log = LoggerFactory.getLogger(StartupDailyDigestService.class);
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final LocalTime CATCH_UP_TIME = LocalTime.of(9, 0);
 
     private final DailyNewsDigestService dailyNewsDigestService;
     private final SendHistoryRepository sendHistoryRepository;
 
     @EventListener(ApplicationReadyEvent.class)
     public void checkAndSendDailyDigestOnStartup() {
-        LocalDate today = LocalDate.now(KST);
-        if (!sendHistoryRepository.claimDailyIfAbsent(today)) {
+        ZonedDateTime now = ZonedDateTime.now(KST);
+        LocalDate today = now.toLocalDate();
+        if (now.toLocalTime().isBefore(CATCH_UP_TIME)) {
+            return;
+        }
+
+        if (!sendHistoryRepository.claimDailyIfAbsent(today, "startup-check")) {
             log.info("[STARTUP] daily digest already sent");
             return;
         }
 
-        log.info("[STARTUP] daily digest missed → sending");
+        log.info("[STARTUP] daily digest missed -> sending");
         try {
-            dailyNewsDigestService.sendDailyDigest();
+            dailyNewsDigestService.sendDailyDigestAfterClaim(today, "startup-check");
         } catch (Exception e) {
-            sendHistoryRepository.completeDaily(today, 0, "FAILED", safeMessage(e));
             log.warn("[STARTUP] daily digest send failed: {}", safeMessage(e));
         }
     }

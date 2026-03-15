@@ -56,7 +56,7 @@ public class NewsService {
                         item.link(),
                         item.publishedAt()
                 ))
-                .toList();
+                .collect(Collectors.toList());
 
         List<ScoredNewsItem> scored = newsScoreService.scoreAll(filtered);
         int changed = newsRepository.upsertAll(scored);
@@ -143,12 +143,12 @@ public class NewsService {
                 .filter(this::passesQualityGate)
                 .sorted(Comparator.comparingDouble(this::weightedScore).reversed()
                         .thenComparing(StoredNewsItem::publishedAt, Comparator.reverseOrder()))
-                .toList();
+                .collect(Collectors.toList());
         if (ranked.isEmpty() && !input.isEmpty()) {
             ranked = input.stream()
                     .sorted(Comparator.comparingDouble(this::weightedScore).reversed()
                             .thenComparing(StoredNewsItem::publishedAt, Comparator.reverseOrder()))
-                    .toList();
+                    .collect(Collectors.toList());
             log.info("[DIGEST] qualityGate fallback applied. input={} fallbackRanked={}", input.size(), ranked.size());
         }
 
@@ -256,10 +256,10 @@ public class NewsService {
             }
         }
 
-        List<StoredNewsItem> normalizedTop = topNews.stream().map(this::toDigestItem).toList();
+        List<StoredNewsItem> normalizedTop = topNews.stream().map(this::toDigestItem).collect(Collectors.toList());
         Map<NewsCategory, List<StoredNewsItem>> normalizedCategories = new LinkedHashMap<>();
         for (Map.Entry<NewsCategory, List<StoredNewsItem>> entry : compactCategories.entrySet()) {
-            normalizedCategories.put(entry.getKey(), entry.getValue().stream().map(this::toDigestItem).toList());
+            normalizedCategories.put(entry.getKey(), entry.getValue().stream().map(this::toDigestItem).collect(Collectors.toList()));
         }
 
         List<StoredNewsItem> merged = mergedItems(normalizedTop, normalizedCategories);
@@ -623,16 +623,28 @@ public class NewsService {
                 .trim();
 
         if (mostlyAscii(text)) {
-            return switch (item.category()) {
-                case AI -> "AI 모델·도구 변화가 개발 속도와 제품 전략에 직접 영향을 줄 수 있음";
-                case DEV -> "개발 워크플로우와 팀 생산성에 영향을 줄 수 있어 확인할 가치가 있음";
-                case INFRA -> "배포 안정성과 비용 최적화에 영향을 줄 수 있어 점검이 필요함";
-                case SECURITY -> "취약점 대응 우선순위 재정렬에 참고할 실무 신호로 볼 가치가 있음";
-                case BIGTECH -> "플랫폼 정책 변화가 서비스 UX와 과금 전략에 영향을 줄 수 있음";
-                case KOREA_IT -> "국내 기술 변화가 실무 환경과 협업 방식에 반영될 가능성이 큼";
-                case MARKET -> "반도체·빅테크 이슈가 국내외 기술주 흐름에 직접 영향을 줄 수 있음";
-                case MACRO -> "금리·환율 변화가 기술주 밸류에이션과 투자 심리에 영향을 줄 수 있음";
-            };
+            if (item.category() == NewsCategory.AI) {
+                return "AI 모델·도구 변화가 개발 속도와 제품 전략에 직접 영향을 줄 수 있음";
+            }
+            if (item.category() == NewsCategory.DEV) {
+                return "개발 워크플로우와 팀 생산성에 영향을 줄 수 있어 확인할 가치가 있음";
+            }
+            if (item.category() == NewsCategory.INFRA) {
+                return "배포 안정성과 비용 최적화에 영향을 줄 수 있어 점검이 필요함";
+            }
+            if (item.category() == NewsCategory.SECURITY) {
+                return "취약점 대응 우선순위 재정렬에 참고할 실무 신호로 볼 가치가 있음";
+            }
+            if (item.category() == NewsCategory.BIGTECH) {
+                return "플랫폼 정책 변화가 서비스 UX와 과금 전략에 영향을 줄 수 있음";
+            }
+            if (item.category() == NewsCategory.KOREA_IT) {
+                return "국내 기술 변화가 실무 환경과 협업 방식에 반영될 가능성이 큼";
+            }
+            if (item.category() == NewsCategory.MARKET) {
+                return "반도체·빅테크 이슈가 국내외 기술주 흐름에 직접 영향을 줄 수 있음";
+            }
+            return "금리·환율 변화가 기술주 밸류에이션과 투자 심리에 영향을 줄 수 있음";
         }
 
         if (text.contains(".")) {

@@ -3,7 +3,7 @@ package com.example.mailserver.repository;
 import com.example.mailserver.news.NewsCategory;
 import com.example.mailserver.news.ScoredNewsItem;
 import com.example.mailserver.news.StoredNewsItem;
-import jakarta.annotation.PostConstruct;
+import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -17,6 +17,47 @@ import java.util.List;
 @Repository
 @RequiredArgsConstructor
 public class NewsRepository {
+
+    private static final String CREATE_NEWS_TABLE_SQL =
+            "CREATE TABLE IF NOT EXISTS news ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    + "title TEXT NOT NULL,"
+                    + "summary TEXT NOT NULL,"
+                    + "category TEXT NOT NULL,"
+                    + "source TEXT NOT NULL,"
+                    + "link TEXT NOT NULL,"
+                    + "published_at INTEGER NOT NULL,"
+                    + "score REAL NOT NULL,"
+                    + "created_at INTEGER NOT NULL,"
+                    + "link_hash TEXT NOT NULL UNIQUE"
+                    + ")";
+    private static final String UPSERT_NEWS_SQL =
+            "INSERT INTO news (title, summary, category, source, link, published_at, score, created_at, link_hash) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                    + "ON CONFLICT(link_hash) DO UPDATE SET "
+                    + "title = excluded.title, "
+                    + "summary = excluded.summary, "
+                    + "category = excluded.category, "
+                    + "source = excluded.source, "
+                    + "link = excluded.link, "
+                    + "published_at = excluded.published_at, "
+                    + "score = CASE WHEN excluded.score > news.score THEN excluded.score ELSE news.score END";
+    private static final String FIND_SINCE_SQL =
+            "SELECT id, title, summary, category, source, link, published_at, score, created_at "
+                    + "FROM news "
+                    + "WHERE published_at >= ? "
+                    + "ORDER BY score DESC, published_at DESC "
+                    + "LIMIT ?";
+    private static final String FIND_SINCE_BY_CATEGORY_SQL =
+            "SELECT id, title, summary, category, source, link, published_at, score, created_at "
+                    + "FROM news "
+                    + "WHERE published_at >= ? AND category = ? "
+                    + "ORDER BY score DESC, published_at DESC "
+                    + "LIMIT ?";
+    private static final String SEARCH_BASE_SQL =
+            "SELECT id, title, summary, category, source, link, published_at, score, created_at "
+                    + "FROM news "
+                    + "WHERE (LOWER(title) LIKE ? OR LOWER(summary) LIKE ? OR LOWER(source) LIKE ?)";
 
     private static final RowMapper<StoredNewsItem> ROW_MAPPER = new RowMapper<>() {
         @Override
@@ -39,20 +80,7 @@ public class NewsRepository {
 
     @PostConstruct
     public void initSchema() {
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS news (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    summary TEXT NOT NULL,
-                    category TEXT NOT NULL,
-                    source TEXT NOT NULL,
-                    link TEXT NOT NULL,
-                    published_at INTEGER NOT NULL,
-                    score REAL NOT NULL,
-                    created_at INTEGER NOT NULL,
-                    link_hash TEXT NOT NULL UNIQUE
-                )
-                """);
+        jdbcTemplate.execute(CREATE_NEWS_TABLE_SQL);
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_news_published_at ON news(published_at DESC)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_news_category ON news(category)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_news_score ON news(score DESC)");
@@ -63,18 +91,7 @@ public class NewsRepository {
             return 0;
         }
 
-        int[][] results = jdbcTemplate.batchUpdate("""
-                        INSERT INTO news (title, summary, category, source, link, published_at, score, created_at, link_hash)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(link_hash) DO UPDATE SET
-                          title = excluded.title,
-                          summary = excluded.summary,
-                          category = excluded.category,
-                          source = excluded.source,
-                          link = excluded.link,
-                          published_at = excluded.published_at,
-                          score = CASE WHEN excluded.score > news.score THEN excluded.score ELSE news.score END
-                        """,
+        int[][] results = jdbcTemplate.batchUpdate(UPSERT_NEWS_SQL,
                 items,
                 items.size(),
                 (ps, item) -> {
@@ -101,13 +118,7 @@ public class NewsRepository {
     }
 
     public List<StoredNewsItem> findSince(Instant since, int limit) {
-        return jdbcTemplate.query("""
-                        SELECT id, title, summary, category, source, link, published_at, score, created_at
-                        FROM news
-                        WHERE published_at >= ?
-                        ORDER BY score DESC, published_at DESC
-                        LIMIT ?
-                        """,
+        return jdbcTemplate.query(FIND_SINCE_SQL,
                 ROW_MAPPER,
                 since.toEpochMilli(),
                 limit
@@ -115,13 +126,7 @@ public class NewsRepository {
     }
 
     public List<StoredNewsItem> findSinceByCategory(Instant since, NewsCategory category, int limit) {
-        return jdbcTemplate.query("""
-                        SELECT id, title, summary, category, source, link, published_at, score, created_at
-                        FROM news
-                        WHERE published_at >= ? AND category = ?
-                        ORDER BY score DESC, published_at DESC
-                        LIMIT ?
-                        """,
+        return jdbcTemplate.query(FIND_SINCE_BY_CATEGORY_SQL,
                 ROW_MAPPER,
                 since.toEpochMilli(),
                 category.name(),
@@ -130,11 +135,7 @@ public class NewsRepository {
     }
 
     public List<StoredNewsItem> search(String query, NewsCategory category, int limit) {
-        StringBuilder sql = new StringBuilder("""
-                SELECT id, title, summary, category, source, link, published_at, score, created_at
-                FROM news
-                WHERE (LOWER(title) LIKE ? OR LOWER(summary) LIKE ? OR LOWER(source) LIKE ?)
-                """);
+        StringBuilder sql = new StringBuilder(SEARCH_BASE_SQL);
         if (category != null) {
             sql.append(" AND category = ? ");
         }

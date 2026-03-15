@@ -1,7 +1,7 @@
 package com.example.mailserver.service;
 
 import com.example.mailserver.config.NewsProperties;
-import jakarta.annotation.PostConstruct;
+import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

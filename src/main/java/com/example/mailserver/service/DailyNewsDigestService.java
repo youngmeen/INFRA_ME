@@ -3,6 +3,8 @@ package com.example.mailserver.service;
 import com.example.mailserver.news.NewsDigestView;
 import com.example.mailserver.repository.SendHistoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -12,6 +14,7 @@ import java.time.ZoneId;
 @RequiredArgsConstructor
 public class DailyNewsDigestService {
 
+    private static final Logger log = LoggerFactory.getLogger(DailyNewsDigestService.class);
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final NewsService newsService;
@@ -20,21 +23,35 @@ public class DailyNewsDigestService {
     private final SendHistoryRepository sendHistoryRepository;
 
     public int sendDailyDigest() {
+        return sendDailyDigest("manual");
+    }
+
+    public int sendDailyDigest(String source) {
         LocalDate today = LocalDate.now(KST);
+        if (!sendHistoryRepository.claimDailyIfAbsent(today, source)) {
+            return -1;
+        }
+        return sendDailyDigestAfterClaim(today, source);
+    }
+
+    public int sendDailyDigestAfterClaim(LocalDate today, String source) {
         try {
             NewsDigestView view = newsService.getDailyDigestCandidates();
             if (view.totalCount() == 0) {
                 telegramService.sendMessage("📊 오늘의 Dev 뉴스\n지난 24시간 내 조건에 맞는 뉴스가 없습니다.");
-                sendHistoryRepository.upsertDailyResult(today, 0, "EMPTY", "no-candidates");
+                sendHistoryRepository.saveDailyResult(today, 0, "EMPTY", source + ":no-candidates");
+                log.info("[SEND_HISTORY] DAILY_NEWS saved status=EMPTY date={} source={} count=0", today, source);
                 return 0;
             }
 
             String html = telegramFormatService.formatDaily(view);
             telegramService.sendHtmlMessage(html);
-            sendHistoryRepository.upsertDailyResult(today, view.totalCount(), "SENT", "daily-digest");
+            sendHistoryRepository.saveDailyResult(today, view.totalCount(), "SUCCESS", source + ":daily-digest");
+            log.info("[SEND_HISTORY] DAILY_NEWS saved status=SUCCESS date={} source={} count={}", today, source, view.totalCount());
             return view.totalCount();
         } catch (Exception e) {
-            sendHistoryRepository.upsertDailyResult(today, 0, "FAILED", safeMessage(e));
+            sendHistoryRepository.saveDailyResult(today, 0, "FAIL", source + ":" + safeMessage(e));
+            log.info("[SEND_HISTORY] DAILY_NEWS saved status=FAIL date={} source={} count=0", today, source);
             throw e;
         }
     }

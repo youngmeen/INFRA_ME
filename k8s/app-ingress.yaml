@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app
+  namespace: infra-me
+  labels:
+    app.kubernetes.io/name: app
+    app.kubernetes.io/component: ingress-route
+    app.kubernetes.io/part-of: infra-me
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: app.localtest.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app
+                port:
+                  name: http

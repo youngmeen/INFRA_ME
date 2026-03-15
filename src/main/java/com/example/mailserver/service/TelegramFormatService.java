@@ -12,6 +12,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,7 +29,7 @@ public class TelegramFormatService {
 
         sb.append("\n");
         sb.append("<b>오늘 핵심</b>\n");
-        for (String line : view.briefing().stream().limit(2).toList()) {
+        for (String line : view.briefing().stream().limit(2).collect(Collectors.toList())) {
             sb.append("- ").append(escape(shortSentence(line, 64))).append("\n");
         }
 
@@ -38,7 +39,7 @@ public class TelegramFormatService {
             sb.append("──────────\n");
 
             int index = 1;
-            for (StoredNewsItem item : view.topNews().stream().limit(2).toList()) {
+            for (StoredNewsItem item : view.topNews().stream().limit(2).collect(Collectors.toList())) {
                 sb.append("\n<b>").append(index++).append(". [").append(displayCategory(item.category())).append("] ")
                         .append(interestBadge(item))
                         .append(escape(displayTitle(item.title()))).append("</b>\n");
@@ -94,29 +95,53 @@ public class TelegramFormatService {
     }
 
     private String whyImportant(StoredNewsItem item) {
-        return switch (item.category()) {
-            case AI -> "개발 생산성과 서비스 방향을 바꿀 수 있는 변화임";
-            case DEV -> "팀 개발 속도와 워크플로우에 바로 영향을 줄 수 있음";
-            case INFRA -> "운영 안정성·비용 최적화 판단에 직접 연결됨";
-            case SECURITY -> "보안 점검 우선순위 재정렬에 참고할 가치가 있음";
-            case BIGTECH -> "플랫폼 정책이 제품 UX와 비즈니스 결정에 영향을 줄 수 있음";
-            case KOREA_IT -> "국내 기술 정책·산업 흐름이 실무 환경에 반영될 수 있음";
-            case MARKET -> "반도체·실적·가이던스 이슈가 기술주 흐름에 직접 연결됨";
-            case MACRO -> "금리·환율·물가 변화가 기술주 밸류에이션에 영향을 줄 수 있음";
-        };
+        if (item.category() == NewsCategory.AI) {
+            return "개발 생산성과 서비스 방향을 바꿀 수 있는 변화임";
+        }
+        if (item.category() == NewsCategory.DEV) {
+            return "팀 개발 속도와 워크플로우에 바로 영향을 줄 수 있음";
+        }
+        if (item.category() == NewsCategory.INFRA) {
+            return "운영 안정성·비용 최적화 판단에 직접 연결됨";
+        }
+        if (item.category() == NewsCategory.SECURITY) {
+            return "보안 점검 우선순위 재정렬에 참고할 가치가 있음";
+        }
+        if (item.category() == NewsCategory.BIGTECH) {
+            return "플랫폼 정책이 제품 UX와 비즈니스 결정에 영향을 줄 수 있음";
+        }
+        if (item.category() == NewsCategory.KOREA_IT) {
+            return "국내 기술 정책·산업 흐름이 실무 환경에 반영될 수 있음";
+        }
+        if (item.category() == NewsCategory.MARKET) {
+            return "반도체·실적·가이던스 이슈가 기술주 흐름에 직접 연결됨";
+        }
+        return "금리·환율·물가 변화가 기술주 밸류에이션에 영향을 줄 수 있음";
     }
 
     private String displayCategory(NewsCategory category) {
-        return switch (category) {
-            case AI -> "🤖 AI";
-            case DEV -> "🛠 DEV";
-            case INFRA -> "☁ INFRA";
-            case SECURITY -> "🛡 SECURITY";
-            case BIGTECH -> "🏢 BIGTECH";
-            case KOREA_IT -> "🇰🇷 KOREA IT";
-            case MARKET -> "📈 시장";
-            case MACRO -> "🌍 거시경제";
-        };
+        if (category == NewsCategory.AI) {
+            return "🤖 AI";
+        }
+        if (category == NewsCategory.DEV) {
+            return "🛠 DEV";
+        }
+        if (category == NewsCategory.INFRA) {
+            return "☁ INFRA";
+        }
+        if (category == NewsCategory.SECURITY) {
+            return "🛡 SECURITY";
+        }
+        if (category == NewsCategory.BIGTECH) {
+            return "🏢 BIGTECH";
+        }
+        if (category == NewsCategory.KOREA_IT) {
+            return "🇰🇷 KOREA IT";
+        }
+        if (category == NewsCategory.MARKET) {
+            return "📈 시장";
+        }
+        return "🌍 거시경제";
     }
 
     private String displayTitle(String rawTitle) {
