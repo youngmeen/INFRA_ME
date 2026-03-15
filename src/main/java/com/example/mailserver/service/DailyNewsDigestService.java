@@ -8,31 +8,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
 
 @Service
 @RequiredArgsConstructor
 public class DailyNewsDigestService {
 
     private static final Logger log = LoggerFactory.getLogger(DailyNewsDigestService.class);
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final NewsService newsService;
     private final TelegramService telegramService;
     private final TelegramFormatService telegramFormatService;
     private final SendHistoryRepository sendHistoryRepository;
-
-    public int sendDailyDigest() {
-        return sendDailyDigest("manual");
-    }
-
-    public int sendDailyDigest(String source) {
-        LocalDate today = LocalDate.now(KST);
-        if (!sendHistoryRepository.claimDailyIfAbsent(today, source)) {
-            return -1;
-        }
-        return sendDailyDigestAfterClaim(today, source);
-    }
 
     public int sendDailyDigestAfterClaim(LocalDate today, String source) {
         try {

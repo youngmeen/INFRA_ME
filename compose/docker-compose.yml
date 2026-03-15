@@ -4,11 +4,24 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    container_name: infra-me-app
     restart: unless-stopped
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       PORT: ${PORT:-3000}
-      DB_URL: ${DB_URL:-jdbc:sqlite:/data/news.db}
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-app}
+      DB_USER: ${DB_USER:-app}
+      DB_PASSWORD: ${DB_PASSWORD:-app1234}
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/${DB_NAME:-app}?useUnicode=true&characterEncoding=utf8mb4&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Seoul
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-app}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-app1234}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis1234}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:-redis1234}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -18,7 +31,7 @@ services:
     volumes:
       - ../data:/data
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/actuator/health/readiness"]
       interval: 20s
       timeout: 5s
       retries: 6
@@ -28,10 +41,57 @@ services:
       - "traefik.http.routers.app.rule=PathPrefix(`/`)"
       - "traefik.http.routers.app.entrypoints=web"
       - "traefik.http.services.app.loadbalancer.server.port=3000"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app_net
+
+  mariadb:
+    image: mariadb:10.3
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-change_me_1234}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-app}
+      MARIADB_USER: ${MARIADB_USER:-app}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-app1234}
+    ports:
+      - "${MARIADB_PORT:-13306}:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MARIADB_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - app_net
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-redis1234}"]
+    ports:
+      - "${REDIS_EXTERNAL_PORT:-16379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis1234}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app_net
 
   traefik:
     image: traefik:v3.0
-    container_name: infra-me-traefik
     restart: unless-stopped
     command:
       - "--providers.docker=true"
@@ -54,10 +114,11 @@ services:
     depends_on:
       app:
         condition: service_healthy
+    networks:
+      - app_net
 
   portainer:
     image: portainer/portainer-ce:latest
-    container_name: infra-me-portainer
     restart: unless-stopped
     command: ["-H", "unix:///var/run/docker.sock"]
     ports:
@@ -72,6 +133,13 @@ services:
       timeout: 5s
       retries: 8
       start_period: 30s
+    networks:
+      - app_net
 
 volumes:
   portainer_data:
+  mariadb_data:
+  redis_data:
+
+networks:
+  app_net:

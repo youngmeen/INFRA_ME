@@ -12,8 +12,8 @@ fail_with_logs() {
   echo "[DEPLOY][ERROR] $*"
   echo "[DEPLOY][ERROR] docker compose ps"
   docker compose ps || true
-  echo "[DEPLOY][ERROR] docker compose logs --tail=200 mail-server"
-  docker compose logs --tail=200 mail-server || true
+  echo "[DEPLOY][ERROR] docker compose logs --tail=200 app"
+  docker compose logs --tail=200 app || true
   exit 1
 }
 
@@ -57,5 +57,5 @@ fi
 
 log "health ok"
 log "effective config"
-docker compose logs --tail=120 mail-server | rg "\\[CONFIG\\]" || true
+docker compose logs --tail=120 app | rg "\\[CONFIG\\]" || true
 log "deploy completed"

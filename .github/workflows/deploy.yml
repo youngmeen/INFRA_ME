@@ -1,39 +1,186 @@
-name: Deploy Mail Server
+name: Deploy To Kubernetes
 
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
+    inputs:
+      image_ref:
+        description: "Image to deploy (ex: ghcr.io/owner/repo:sha-xxxxxxx)"
+        required: true
+        default: "ghcr.io/youngmeen/infra_me:main"
+      namespace:
+        description: "Kubernetes namespace"
+        required: true
+        default: "infra-me"
+      deploy_traefik:
+        description: "Deploy traefik resources together"
+        required: true
+        type: boolean
+        default: true
+      rollout_timeout:
+        description: "Rollout timeout (seconds)"
+        required: true
+        default: "300"
 
 jobs:
   deploy:
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    env:
+      APP_IMAGE: ${{ inputs.image_ref }}
+      K8S_NAMESPACE: ${{ inputs.namespace }}
+      ROLLOUT_TIMEOUT: ${{ inputs.rollout_timeout }}
+      DB_HOST: ${{ vars.DB_HOST }}
+      DB_PORT: ${{ vars.DB_PORT }}
+      DB_NAME: ${{ vars.DB_NAME }}
+      DB_USER: ${{ vars.DB_USER }}
+      REDIS_HOST: ${{ vars.REDIS_HOST }}
+      REDIS_PORT: ${{ vars.REDIS_PORT }}
+      SPRING_MAIL_PORT: ${{ vars.SPRING_MAIL_PORT }}
+      SPRING_MAIL_STARTTLS_ENABLE: ${{ vars.SPRING_MAIL_STARTTLS_ENABLE }}
+      OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+      APP_STARTUP_CATCHUP_ENABLED: ${{ vars.APP_STARTUP_CATCHUP_ENABLED }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+      SPRING_MAIL_HOST: ${{ secrets.SPRING_MAIL_HOST }}
+      SPRING_MAIL_USERNAME: ${{ secrets.SPRING_MAIL_USERNAME }}
+      SPRING_MAIL_PASSWORD: ${{ secrets.SPRING_MAIL_PASSWORD }}
+      APP_MAIL_FROM: ${{ secrets.APP_MAIL_FROM }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          clean: false
 
-      - name: Ensure runtime secrets file exists
+      - name: Validate required inputs and secrets
         run: |
-          if [ ! -f .env ]; then
-            echo ".env is required on self-hosted runner and must contain runtime secrets."
-            exit 1
+          set -euo pipefail
+          test -n "$APP_IMAGE" || { echo "[ERROR] image_ref is required"; exit 1; }
+          test -n "$K8S_NAMESPACE" || { echo "[ERROR] namespace is required"; exit 1; }
+          test -n "$DB_PASSWORD" || { echo "[ERROR] secret DB_PASSWORD is required"; exit 1; }
+          test -n "$REDIS_PASSWORD" || { echo "[ERROR] secret REDIS_PASSWORD is required"; exit 1; }
+          test -n "$TELEGRAM_BOT_TOKEN" || { echo "[ERROR] secret TELEGRAM_BOT_TOKEN is required"; exit 1; }
+          test -n "$TELEGRAM_CHAT_ID" || { echo "[ERROR] secret TELEGRAM_CHAT_ID is required"; exit 1; }
+          echo "[INFO] target image=$APP_IMAGE namespace=$K8S_NAMESPACE"
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.30.2"
+
+      - name: Set kubeconfig from secret
+        run: |
+          set -euo pipefail
+          test -n "${{ secrets.KUBE_CONFIG }}" || { echo "[ERROR] secret KUBE_CONFIG is required"; exit 1; }
+          mkdir -p "$HOME/.kube"
+          KCFG_RAW='${{ secrets.KUBE_CONFIG }}'
+          if echo "$KCFG_RAW" | base64 --decode > "$HOME/.kube/config.decoded" 2>/dev/null; then
+            if grep -q "apiVersion:" "$HOME/.kube/config.decoded"; then
+              mv "$HOME/.kube/config.decoded" "$HOME/.kube/config"
+            else
+              printf "%s" "$KCFG_RAW" > "$HOME/.kube/config"
+            fi
+          else
+            printf "%s" "$KCFG_RAW" > "$HOME/.kube/config"
+          fi
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Check cluster connectivity
+        run: |
+          set -euo pipefail
+          kubectl config current-context
+          kubectl cluster-info
+
+      - name: Create namespace
+        run: |
+          set -euo pipefail
+          kubectl create namespace "$K8S_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply app config
+        run: |
+          set -euo pipefail
+          kubectl -n "$K8S_NAMESPACE" create configmap app-config \
+            --from-literal=SPRING_PROFILES_ACTIVE=docker \
+            --from-literal=PORT=3000 \
+            --from-literal=DB_HOST="${DB_HOST:-mariadb}" \
+            --from-literal=DB_PORT="${DB_PORT:-3306}" \
+            --from-literal=DB_NAME="${DB_NAME:-app}" \
+            --from-literal=DB_USER="${DB_USER:-app}" \
+            --from-literal=REDIS_HOST="${REDIS_HOST:-redis}" \
+            --from-literal=REDIS_PORT="${REDIS_PORT:-6379}" \
+            --from-literal=SPRING_MAIL_PORT="${SPRING_MAIL_PORT:-587}" \
+            --from-literal=SPRING_MAIL_STARTTLS_ENABLE="${SPRING_MAIL_STARTTLS_ENABLE:-true}" \
+            --from-literal=OPENAI_MODEL="${OPENAI_MODEL:-gpt-4.1-mini}" \
+            --from-literal=APP_STARTUP_CATCHUP_ENABLED="${APP_STARTUP_CATCHUP_ENABLED:-true}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply app secrets
+        run: |
+          set -euo pipefail
+          kubectl -n "$K8S_NAMESPACE" create secret generic app-secrets \
+            --from-literal=DB_PASSWORD="$DB_PASSWORD" \
+            --from-literal=REDIS_PASSWORD="$REDIS_PASSWORD" \
+            --from-literal=SPRING_MAIL_HOST="${SPRING_MAIL_HOST:-}" \
+            --from-literal=SPRING_MAIL_USERNAME="${SPRING_MAIL_USERNAME:-}" \
+            --from-literal=SPRING_MAIL_PASSWORD="${SPRING_MAIL_PASSWORD:-}" \
+            --from-literal=APP_MAIL_FROM="${APP_MAIL_FROM:-}" \
+            --from-literal=TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
+            --from-literal=TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID" \
+            --from-literal=OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Render namespace-scoped manifests
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp-k8s
+          cp k8s/*.yaml .tmp-k8s/
+          rm -f .tmp-k8s/app-configmap.yaml .tmp-k8s/app-secret.example.yaml .tmp-k8s/namespace.yaml
+          for f in .tmp-k8s/*.yaml; do
+            sed -i.bak "s/namespace: infra-me/namespace: ${K8S_NAMESPACE}/g" "$f"
+            rm -f "$f.bak"
+          done
+
+      - name: Apply app manifests
+        run: |
+          set -euo pipefail
+          kubectl apply -f .tmp-k8s/app-deployment.yaml
+          kubectl apply -f .tmp-k8s/app-service.yaml
+          kubectl apply -f .tmp-k8s/app-ingress.yaml
+          kubectl -n "$K8S_NAMESPACE" set image deployment/app app="$APP_IMAGE"
+
+      - name: Apply traefik manifests
+        if: ${{ inputs.deploy_traefik }}
+        run: |
+          set -euo pipefail
+          kubectl apply -f .tmp-k8s/traefik-ingressclass.yaml
+          kubectl apply -f .tmp-k8s/traefik-rbac.yaml
+          kubectl apply -f .tmp-k8s/traefik-deployment.yaml
+          kubectl apply -f .tmp-k8s/traefik-service.yaml
+
+      - name: Wait rollout
+        run: |
+          set -euo pipefail
+          kubectl -n "$K8S_NAMESPACE" rollout status deployment/app --timeout="${ROLLOUT_TIMEOUT}s"
+          if [ "${{ inputs.deploy_traefik }}" = "true" ]; then
+            kubectl -n "$K8S_NAMESPACE" rollout status deployment/traefik --timeout="${ROLLOUT_TIMEOUT}s"
           fi
 
-      - name: Ensure docker access
+      - name: Print deploy summary
         run: |
-          docker ps >/dev/null
-          docker compose version >/dev/null
+          set -euo pipefail
+          kubectl -n "$K8S_NAMESPACE" get deploy
+          kubectl -n "$K8S_NAMESPACE" get pods -o wide
+          kubectl -n "$K8S_NAMESPACE" get svc
+          kubectl -n "$K8S_NAMESPACE" get ingress
+          echo "[SUCCESS] deployed image=$APP_IMAGE namespace=$K8S_NAMESPACE"
 
-      - name: Deploy
+      - name: Diagnostics on failure
+        if: failure()
         run: |
-          chmod +x scripts/deploy.sh
-          ./scripts/deploy.sh
-
-      - name: Verify API endpoints
-        run: |
-          curl -fsS http://localhost:3000/health >/dev/null
-          curl -fsS http://localhost:3000/news/today/digest >/dev/null
+          set +e
+          kubectl -n "$K8S_NAMESPACE" get all
+          kubectl -n "$K8S_NAMESPACE" describe deploy app
+          kubectl -n "$K8S_NAMESPACE" get events --sort-by=.metadata.creationTimestamp | tail -n 100

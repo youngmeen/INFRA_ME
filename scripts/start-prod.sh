@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "[START] mail-server production start"
+echo "[START] app production start"
 
 if [[ ! -f .env ]]; then
   echo "[ERROR] .env not found. Prepare local secrets first."
@@ -28,7 +28,7 @@ done
 
 if [[ "$HEALTH_OK" != "true" ]]; then
   echo "[ERROR] health check failed"
-  docker compose logs --tail=200 mail-server || true
+  docker compose logs --tail=200 app || true
   exit 1
 fi
 
@@ -36,6 +36,6 @@ echo "[START] health OK"
 curl -sS http://localhost:3000/health
 
 echo "[START] recent logs"
-docker compose logs --tail=120 mail-server | rg '\[CONFIG\]|\[DIGEST\]|\[LANG\]|\[MARKET\]|\[MACRO\]' || true
+docker compose logs --tail=120 app | rg '\[CONFIG\]|\[DIGEST\]|\[LANG\]|\[MARKET\]|\[MACRO\]' || true
 
 echo "[START] done"

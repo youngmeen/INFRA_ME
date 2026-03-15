@@ -8,7 +8,12 @@ metadata:
     app.kubernetes.io/component: backend
     app.kubernetes.io/part-of: infra-me
 spec:
-  replicas: 1
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: app
@@ -22,44 +27,21 @@ spec:
     spec:
       containers:
         - name: app
-          image: infra-me-app:latest
+          image: ghcr.io/youngmeen/infra_me:main
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 3000
-          env:
-            - name: PORT
-              value: "3000"
-            - name: DB_URL
-              value: "jdbc:sqlite:/data/news.db"
-            - name: SPRING_MAIL_HOST
-              value: ""
-            - name: SPRING_MAIL_PORT
-              value: "587"
-            - name: SPRING_MAIL_USERNAME
-              value: ""
-            - name: SPRING_MAIL_PASSWORD
-              value: ""
-            - name: SPRING_MAIL_STARTTLS_ENABLE
-              value: "true"
-            - name: APP_MAIL_FROM
-              value: ""
-            - name: TELEGRAM_BOT_TOKEN
-              value: ""
-            - name: TELEGRAM_CHAT_ID
-              value: ""
-            - name: OPENAI_API_KEY
-              value: ""
-            - name: OPENAI_MODEL
-              value: "gpt-4.1-mini"
-          volumeMounts:
-            - name: app-data
-              mountPath: /data
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
           readinessProbe:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 15
+            initialDelaySeconds: 20
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 5
@@ -67,17 +49,14 @@ spec:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 30
+            initialDelaySeconds: 45
             periodSeconds: 20
             timeoutSeconds: 3
             failureThreshold: 5
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 200m
+              memory: 384Mi
             limits:
-              cpu: 500m
-              memory: 768Mi
-      volumes:
-        - name: app-data
-          emptyDir: {}
+              cpu: 1000m
+              memory: 1024Mi

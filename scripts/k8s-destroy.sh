@@ -22,6 +22,8 @@ kubectl delete -f k8s/traefik-service.yaml --ignore-not-found=true
 kubectl delete -f k8s/traefik-deployment.yaml --ignore-not-found=true
 kubectl delete -f k8s/app-service.yaml --ignore-not-found=true
 kubectl delete -f k8s/app-deployment.yaml --ignore-not-found=true
+kubectl delete -f k8s/app-configmap.yaml --ignore-not-found=true
+kubectl -n "$NS" delete secret app-secrets --ignore-not-found=true
 kubectl delete -f k8s/traefik-rbac.yaml --ignore-not-found=true
 kubectl delete -f k8s/traefik-ingressclass.yaml --ignore-not-found=true
 

@@ -3,7 +3,6 @@ package com.example.mailserver.repository;
 import com.example.mailserver.news.NewsCategory;
 import com.example.mailserver.news.ScoredNewsItem;
 import com.example.mailserver.news.StoredNewsItem;
-import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -18,30 +17,17 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NewsRepository {
 
-    private static final String CREATE_NEWS_TABLE_SQL =
-            "CREATE TABLE IF NOT EXISTS news ("
-                    + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    + "title TEXT NOT NULL,"
-                    + "summary TEXT NOT NULL,"
-                    + "category TEXT NOT NULL,"
-                    + "source TEXT NOT NULL,"
-                    + "link TEXT NOT NULL,"
-                    + "published_at INTEGER NOT NULL,"
-                    + "score REAL NOT NULL,"
-                    + "created_at INTEGER NOT NULL,"
-                    + "link_hash TEXT NOT NULL UNIQUE"
-                    + ")";
     private static final String UPSERT_NEWS_SQL =
             "INSERT INTO news (title, summary, category, source, link, published_at, score, created_at, link_hash) "
                     + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
-                    + "ON CONFLICT(link_hash) DO UPDATE SET "
-                    + "title = excluded.title, "
-                    + "summary = excluded.summary, "
-                    + "category = excluded.category, "
-                    + "source = excluded.source, "
-                    + "link = excluded.link, "
-                    + "published_at = excluded.published_at, "
-                    + "score = CASE WHEN excluded.score > news.score THEN excluded.score ELSE news.score END";
+                    + "ON DUPLICATE KEY UPDATE "
+                    + "title = VALUES(title), "
+                    + "summary = VALUES(summary), "
+                    + "category = VALUES(category), "
+                    + "source = VALUES(source), "
+                    + "link = VALUES(link), "
+                    + "published_at = VALUES(published_at), "
+                    + "score = GREATEST(VALUES(score), score)";
     private static final String FIND_SINCE_SQL =
             "SELECT id, title, summary, category, source, link, published_at, score, created_at "
                     + "FROM news "
@@ -77,14 +63,6 @@ public class NewsRepository {
     };
 
     private final JdbcTemplate jdbcTemplate;
-
-    @PostConstruct
-    public void initSchema() {
-        jdbcTemplate.execute(CREATE_NEWS_TABLE_SQL);
-        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_news_published_at ON news(published_at DESC)");
-        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_news_category ON news(category)");
-        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_news_score ON news(score DESC)");
-    }
 
     public int upsertAll(List<ScoredNewsItem> items) {
         if (items.isEmpty()) {

@@ -1,45 +1,33 @@
 package com.example.mailserver.service;
 
-import com.example.mailserver.repository.SendHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZonedDateTime;
-import java.time.ZoneId;
 
 @Service
 @RequiredArgsConstructor
 public class StartupDailyDigestService {
 
     private static final Logger log = LoggerFactory.getLogger(StartupDailyDigestService.class);
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-    private static final LocalTime CATCH_UP_TIME = LocalTime.of(9, 0);
 
-    private final DailyNewsDigestService dailyNewsDigestService;
-    private final SendHistoryRepository sendHistoryRepository;
+    private final DailyDigestExecutionService digestExecutionService;
+
+    @Value("${app.startup.catchup.enabled:true}")
+    private boolean startupCatchupEnabled;
 
     @EventListener(ApplicationReadyEvent.class)
     public void checkAndSendDailyDigestOnStartup() {
-        ZonedDateTime now = ZonedDateTime.now(KST);
-        LocalDate today = now.toLocalDate();
-        if (now.toLocalTime().isBefore(CATCH_UP_TIME)) {
+        if (!startupCatchupEnabled) {
+            log.info("[STARTUP] catch-up disabled");
             return;
         }
 
-        if (!sendHistoryRepository.claimDailyIfAbsent(today, "startup-check")) {
-            log.info("[STARTUP] daily digest already sent");
-            return;
-        }
-
-        log.info("[STARTUP] daily digest missed -> sending");
         try {
-            dailyNewsDigestService.sendDailyDigestAfterClaim(today, "startup-check");
+            digestExecutionService.runStartupCatchup();
         } catch (Exception e) {
             log.warn("[STARTUP] daily digest send failed: {}", safeMessage(e));
         }

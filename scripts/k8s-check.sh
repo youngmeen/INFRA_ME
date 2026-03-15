@@ -35,9 +35,12 @@ log "cluster-info ok"
 
 if kubectl get ns "$NS" >/dev/null 2>&1; then
   log "namespace=$NS exists"
+  kubectl -n "$NS" get deploy || true
   kubectl -n "$NS" get pods -o wide || true
   kubectl -n "$NS" get svc || true
   kubectl -n "$NS" get ingress || true
+  kubectl -n "$NS" get configmap app-config || true
+  kubectl -n "$NS" get secret app-secrets >/dev/null 2>&1 && echo "[K8S-CHECK] app-secrets exists" || warn "app-secrets missing"
 else
   warn "namespace=$NS not found (deploy not applied yet)"
 fi

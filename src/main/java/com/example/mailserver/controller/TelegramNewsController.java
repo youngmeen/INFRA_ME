@@ -1,6 +1,6 @@
 package com.example.mailserver.controller;
 
-import com.example.mailserver.service.DailyNewsDigestService;
+import com.example.mailserver.service.DailyDigestExecutionService;
 import com.example.mailserver.service.WeeklyReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,12 +15,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TelegramNewsController {
 
-    private final DailyNewsDigestService digestService;
+    private final DailyDigestExecutionService digestExecutionService;
     private final WeeklyReportService weeklyReportService;
 
     @PostMapping("/send-daily-news")
     public ResponseEntity<Map<String, Object>> sendNow() {
-        int count = digestService.sendDailyDigest("manual-api");
+        int count = digestExecutionService.sendDailyDigest("manual-api");
         boolean skipped = count < 0;
         return ResponseEntity.ok(Map.of(
                 "ok", true,

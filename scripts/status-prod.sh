@@ -15,7 +15,7 @@ else
 fi
 
 echo "[STATUS] recent app logs"
-docker compose logs --tail=120 mail-server || true
+docker compose logs --tail=120 app || true
 
 echo "[STATUS] key signal logs"
-docker compose logs --tail=200 mail-server | rg '\[CONFIG\]|\[DIGEST\]|\[LANG\]|\[MARKET\]|\[MACRO\]|\[SCHEDULER\]' || true
+docker compose logs --tail=200 app | rg '\[CONFIG\]|\[DIGEST\]|\[LANG\]|\[MARKET\]|\[MACRO\]|\[SCHEDULER\]' || true
