@@ -5,6 +5,8 @@
 - 민감값은 로컬 `.env`만 사용한다. Git에 커밋하지 않는다.
 - 뉴스 정책(`news-sources.yml`, `news-policy.yml`)은 Git에서 관리한다.
 - 운영 기본 경로는 Git 반영 + 자동 배포(또는 수동 배포)다.
+- 맥미니는 **system sleep을 금지**한다. (display sleep만 허용)
+- sleep/wake 발생 시 09:00 scheduler 정시 실행은 보장되지 않는다.
 
 ## 2) 시작/중지/상태 확인
 
@@ -38,6 +40,24 @@
 
 보조(선택):
 - 무인 복구가 필요하면 `launchd`로 Docker Desktop/운영 스크립트 자동 실행 구성
+
+## 4-1) Sleep 방지 설정 (중요)
+
+권장 설정:
+1. `시스템 설정 > 잠금 화면`에서 디스플레이 끄기만 사용
+2. `시스템 설정 > 에너지 절약(또는 배터리/전원 어댑터)`에서 자동 잠자기 비활성화
+3. 운영 계정 자동 로그인 또는 고정 로그인 세션 유지
+
+보조 명령(임시):
+
+```bash
+# 터미널 세션 유지 중 시스템 sleep 방지
+caffeinate -dimsu
+```
+
+주의:
+- `caffeinate`는 실행된 터미널 세션/프로세스가 살아있는 동안만 유효하다.
+- 장기 운영 기본 해법은 OS 전원 설정에서 system sleep을 끄는 것이다.
 
 ## 5) 운영 확인 명령
 
@@ -89,6 +109,11 @@ curl -fsS http://localhost:3000/health
 1. `/health` 실패
 - `docker compose logs --tail=200 mail-server`
 - 포트/환경변수/DB 경로 확인
+
+0. 09:00 발송 지연(예: 09:18 발송)
+- `Thread starvation or clock leap detected` 로그 확인
+- 호스트 sleep/wake 이력 확인
+- 재발 방지를 위해 system sleep 비활성화 적용
 
 2. Telegram 발송 실패
 - `.env`의 `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` 확인

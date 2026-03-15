@@ -27,6 +27,9 @@ cd /Users/developer/Desktop/codex/projects/mail-server
   - `src/main/resources/config/interest-policy.yml`
 - 운영자가 RSS를 로컬에서 수동 편집하지 않음
   - 정책 수정 -> commit/push(main) -> 자동 배포
+- 맥미니 실운영 시 **system sleep 비활성화 필수**
+  - sleep/wake가 발생하면 09:00 스케줄 실행이 09:18처럼 지연될 수 있음
+  - display off는 가능, system sleep은 금지
 
 ## 자동 배포 경로
 

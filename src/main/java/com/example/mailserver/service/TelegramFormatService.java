@@ -24,23 +24,25 @@ public class TelegramFormatService {
     public String formatDaily(NewsDigestView view) {
         StringBuilder sb = new StringBuilder();
         sb.append("<b>📊 오늘의 Dev+Market 브리핑</b>\n");
-        sb.append("기준: ").append(DATE_FORMAT.format(view.generatedAt())).append("\n\n");
+        sb.append("기준: ").append(DATE_FORMAT.format(view.generatedAt())).append("\n");
 
+        sb.append("\n");
         sb.append("<b>오늘 핵심</b>\n");
         for (String line : view.briefing().stream().limit(2).toList()) {
             sb.append("- ").append(escape(shortSentence(line, 64))).append("\n");
         }
 
         if (!view.topNews().isEmpty()) {
-            sb.append("\n━━━━━━━━━━\n");
+            sb.append("\n──────────\n");
             sb.append("<b>🔥 TOP NEWS</b>\n");
-            sb.append("━━━━━━━━━━\n");
+            sb.append("──────────\n");
 
             int index = 1;
             for (StoredNewsItem item : view.topNews().stream().limit(2).toList()) {
                 sb.append("\n<b>").append(index++).append(". [").append(displayCategory(item.category())).append("] ")
                         .append(interestBadge(item))
                         .append(escape(displayTitle(item.title()))).append("</b>\n");
+                sb.append("🔗 <a href=\"").append(escape(item.link())).append("\">기사 링크</a>\n");
                 sb.append("- 핵심: ").append(escape(displaySummary(item.summary(), item.title()))).append("\n");
                 sb.append("- 왜 중요?: ").append(escape(whyImportant(item))).append("\n");
             }
@@ -52,21 +54,19 @@ public class TelegramFormatService {
                 continue;
             }
 
-            sb.append("\n━━━━━━━━━━\n");
+            sb.append("\n──────────\n");
             sb.append("<b>").append(displayCategory(entry.getKey())).append("</b>\n");
-            sb.append("━━━━━━━━━━\n");
+            sb.append("──────────\n");
 
             for (StoredNewsItem item : items) {
-                sb.append("- <a href=\"").append(escape(item.link())).append("\"><b>")
-                        .append(interestBadge(item))
-                        .append(escape(displayTitle(item.title()))).append("</b></a>\n");
+                sb.append("• <b>").append(interestBadge(item))
+                        .append(escape(displayTitle(item.title()))).append("</b>\n");
                 sb.append("  ").append(escape(displaySummary(item.summary(), item.title()))).append("\n");
-                sb.append("  ").append(escape(item.source())).append(" | ")
-                        .append("<a href=\"").append(escape(item.link())).append("\">링크</a>\n");
+                sb.append("  🔗 <a href=\"").append(escape(item.link())).append("\">기사 링크</a>\n");
+                sb.append("  ").append(escape(item.source())).append("\n");
+                sb.append("\n");
             }
         }
-
-        sb.append("\n총 기사 수: ").append(view.totalCount()).append("건");
         return trimMessage(sb.toString());
     }
 
